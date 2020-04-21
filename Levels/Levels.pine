@@ -1,0 +1,140 @@
+// modified by stevenhq from the script by zonedoutdad who modified the script by ChrisMoody
+// Label drawing code from PineCoders
+// stevenhq:
+//	Converted to Pine Script v4
+// 	Added option to show previous time frames (default is off)
+// 	Added label with the plot time frame name
+//@version=4
+//@author=stevenhq
+//  v2.0, 2020.04.21 — stevenhq
+
+// title
+study(title = "Levels (Year/Month/Monday Open/High/Low/Mid)", shorttitle = "Levels", overlay = true)
+
+// Price levels
+
+// Year
+yearOpen = security(syminfo.tickerid, '12M', open, lookahead=true)
+yearHigh = security(syminfo.tickerid, '12M', high, lookahead=true)
+yearLow = security(syminfo.tickerid, '12M', low, lookahead=true)
+yearMid  = avg(yearHigh, yearLow)
+
+// Month
+monthOpen = security(syminfo.tickerid, 'M', open, lookahead=true)
+monthHigh = security(syminfo.tickerid, 'M', high, lookahead=true)
+monthLow = security(syminfo.tickerid, 'M', low, lookahead=true)
+monthMid  = avg(monthHigh, monthLow)
+
+// Day
+dayOpen = security(syminfo.tickerid, 'D', open, lookahead=true)
+dayHigh = security(syminfo.tickerid, 'D', high, lookahead=true)
+dayLow  = security(syminfo.tickerid, 'D', low, lookahead=true)
+dayClose  = security(syminfo.tickerid, 'D', close, lookahead=true)
+dayMid  = avg(dayHigh, dayLow)
+
+// Easy configuration
+yearColor = #f57f17
+yearTransp = 50
+yearLabel = "Year"
+
+monthColor = color.gray
+monthTransp = 50
+monthLabel = "Month"
+
+mondayColor = color.gray
+mondayTransp = 50
+mondayLabel = "Monday"
+
+// —————————— Inputs
+plotYearly = input(title = "Plot " + yearLabel, type = input.bool, defval = true)
+plotMonthly = input(title = "Plot " + monthLabel, type = input.bool, defval = true)
+plotMonday = input(title = "Plot " + mondayLabel, type = input.bool, defval = true)
+showMid = input(title = "Show Mid Points", type = input.bool, defval = false)
+showPrevPeriods = input(title = "Plot Previous Periods", type = input.bool, defval = false)
+
+
+//function which is called by plot to establish day of the week is monday return true or false
+isMonday() => dayofweek(time('D')) == dayofweek.monday ? 1 : 0
+
+// Set initial values to 0
+mondayOpen=0.0, mondayHigh=0.0, mondayLow=0.0, mondayClose=0.0, mondayMid=0.0
+
+mondayOpen := isMonday() ? dayOpen : mondayOpen[1]
+mondayHigh := isMonday() ? dayHigh : mondayHigh[1]
+mondayLow := isMonday() ? dayLow : mondayLow[1]
+mondayClose := isMonday() ? dayClose : mondayClose[1]
+mondayMid := isMonday() ? dayMid : mondayMid[1]
+
+
+// ————— Print a label at end of the chart
+f_lineLabel(_line, _barsBack, _color, _text) =>
+    var label _lbl = na
+    if barstate.islast
+        if na(_lbl)
+            // Only create label once.
+            //_lbl := label.new(bar_index[_barsBack], _line[_barsBack], xloc = xloc.bar_index, yloc = yloc.price, text = _text +"\n" + tostring(_line[_barsBack]), color = _color, textcolor = #FFFFFFff)
+			_lbl := label.new(bar_index[_barsBack], _line[_barsBack], xloc = xloc.bar_index, yloc = yloc.price, text = "                      " + _text, textcolor = _color, size = size.small, style=label.style_none)
+            // Fudge return type of `if` block so compiler doesn't complain (thx midtownsk8rguy for the trick).
+            int(na)
+        else
+            // Rather than delete and recreate the label on every realtime bar update, update the label's information; it's more efficient.
+            label.set_xy(_lbl, bar_index[_barsBack], _line[_barsBack])
+            label.set_text(_lbl, _text)
+            label.set_color(_lbl, _color)
+            int(na)
+			
+isThisYear = showPrevPeriods
+if year(timenow) == year(time)
+    isThisYear := true
+
+isThisMonth = showPrevPeriods
+if year(timenow) == year(time) and month(timenow) == month(time)
+    isThisMonth := true
+
+isThisWeek = showPrevPeriods
+if year(timenow) == year(time) and month(timenow) == month(time) and weekofyear(timenow) == weekofyear(time) 
+    isThisWeek := true
+
+
+// —————————— Plot Time Frames
+
+//Yearly Plots
+plot(plotYearly and isThisYear ? yearOpen : na, title=yearLabel + " Open", style=plot.style_line, linewidth=3, color=yearColor, transp=yearTransp)
+plot(plotYearly and isThisYear ? yearHigh : na, title=yearLabel + " High", style=plot.style_circles, linewidth=2, color=yearColor, transp=yearTransp)
+plot(plotYearly and isThisYear ? yearLow : na, title=yearLabel + " Low", style=plot.style_circles, linewidth=2, color=yearColor, transp=yearTransp)
+plot(plotYearly and isThisYear and showMid ? yearMid : na, title=yearLabel + " Mid", style=plot.style_circles, linewidth=2, color=yearColor, transp=yearTransp)
+
+//Monthly Plots
+plot(plotMonthly and isThisMonth ? monthOpen : na, title=monthLabel + " Open", style=plot.style_line, linewidth=2, color=monthColor, transp=monthTransp)
+plot(plotMonthly and isThisMonth ? monthHigh : na, title=monthLabel + " High", style=plot.style_circles, linewidth=2, color=monthColor, transp=monthTransp)
+plot(plotMonthly and isThisMonth ? monthLow : na, title=monthLabel + " Low", style=plot.style_circles, linewidth=2, color=monthColor, transp=monthTransp)
+plot(plotMonthly and isThisMonth and showMid ? monthMid : na, title=monthLabel + " Mid", style=plot.style_circles, linewidth=2, color=monthColor, transp=monthTransp)
+
+//Monday Plots
+plot(plotMonday and isThisWeek ? mondayOpen : na, title=mondayLabel + " Open", style=plot.style_line, linewidth=1, color=mondayColor, transp=mondayTransp)
+plot(plotMonday and isThisWeek ? mondayHigh : na, title=mondayLabel + " High", style=plot.style_circles, linewidth=1, color=mondayColor, transp=mondayTransp)
+plot(plotMonday and isThisWeek ? mondayLow : na, title=mondayLabel + " Low",   style=plot.style_circles, linewidth=1, color=mondayColor, transp=mondayTransp)
+plot(plotMonday and isThisWeek and showMid ? mondayMid : na, title=mondayLabel + " Mid",   style=plot.style_circles, linewidth=1, color=mondayColor, transp=mondayTransp)
+
+
+// —————————— Plot labels
+if plotYearly
+	f_lineLabel(yearOpen,  0, color.new(yearColor, yearTransp), yearLabel + " Open")
+	f_lineLabel(yearHigh,  0, color.new(yearColor, yearTransp), yearLabel + " High")
+	f_lineLabel(yearLow,  0, color.new(yearColor, yearTransp), yearLabel + " Low")
+	if showMid
+        f_lineLabel(yearMid,  0, color.new(yearColor, yearTransp), yearLabel + " Mid")
+
+if plotMonthly
+	f_lineLabel(monthOpen,  0, color.new(monthColor, monthTransp), monthLabel + " Open")
+	f_lineLabel(monthHigh,  0, color.new(monthColor, monthTransp), monthLabel + " High")
+	f_lineLabel(monthLow,  0, color.new(monthColor, monthTransp), monthLabel + " Low")
+	if showMid
+    	f_lineLabel(monthMid,  0, color.new(monthColor, monthTransp), monthLabel + " Mid")
+
+if plotMonday
+	f_lineLabel(mondayOpen,  0, color.new(mondayColor, mondayTransp), mondayLabel + " Open")
+	f_lineLabel(mondayHigh,  0, color.new(mondayColor, mondayTransp), mondayLabel + " High")
+	f_lineLabel(mondayLow,  0, color.new(mondayColor, mondayTransp), mondayLabel + " Low")
+	if showMid
+    	f_lineLabel(mondayMid,  0, color.new(mondayColor, mondayTransp), mondayLabel + " Mid")
